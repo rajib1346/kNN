@@ -1,0 +1,44 @@
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KDTree
+import numpy as np
+
+# Load the Iris dataset
+data = load_iris()
+X = data.data
+y = data.target
+
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 2D Partitioning: (for simplicity, let's just partition data in halves)
+mid = len(X_train) // 2
+X_train_parts = [X_train[:mid], X_train[mid:]]
+y_train_parts = [y_train[:mid], y_train[mid:]]
+
+def hyperplane_split(data):
+    # Compute the dimension with the greatest variation
+    max_var_dim = np.argmax(np.var(data, axis=0))
+    median_val = np.median(data[:, max_var_dim])
+    left_data = data[data[:, max_var_dim] < median_val]
+    right_data = data[data[:, max_var_dim] >= median_val]
+    return left_data, right_data
+
+# Constructing RKDT using hyperplane splitting
+def build_RKDT(data):
+    if len(data) <= 5:  # setting a base case for simplicity
+        return data
+    left, right = hyperplane_split(data)
+    return {
+        "left": build_RKDT(left),
+        "right": build_RKDT(right)
+    }
+
+# Build the tree for each partition
+trees = [build_RKDT(part) for part in X_train_parts]
+
+# For querying, you would traverse this tree based on your point's features and the hyperplanes you constructed.
+# After reaching a leaf node using greedy traversal, you can further explore the nearby bounding balls.
+# This is a high-level concept and would require more sophisticated implementation for production use.
+
+print(trees)
