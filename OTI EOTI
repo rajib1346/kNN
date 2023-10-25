@@ -1,0 +1,43 @@
+from sklearn import datasets
+from sklearn.cluster import KMeans
+import numpy as np
+
+class EOTI_kNN:
+    def __init__(self, n_clusters=3):
+        self.n_clusters = n_clusters
+        self.kmeans = KMeans(n_clusters=self.n_clusters)
+        self.cluster_centers = None
+        self.stored_distances = None
+
+    def fit(self, X):
+        cluster_labels = self.kmeans.fit_predict(X)
+        self.cluster_centers = self.kmeans.cluster_centers_
+
+        self.stored_distances = np.zeros((len(X), 2))
+        for i, x in enumerate(X):
+            distances_to_centers = np.linalg.norm(self.cluster_centers - x, axis=1)
+            # Store the nearest and farthest cluster center distances
+            self.stored_distances[i, 0] = np.min(distances_to_centers)
+            self.stored_distances[i, 1] = np.max(distances_to_centers)
+
+    def knn_search(self, query_point, k=1):
+        # Using EOTI for pruning and search
+        candidate_indices = []
+        for i, (d_cj, d_cmax) in enumerate(self.stored_distances):
+            if np.linalg.norm(query_point - self.cluster_centers[np.argmin(self.stored_distances[i])]) - d_cmax <= d_cj:
+                candidate_indices.append(i)
+        
+        # For the pruned set of candidates, perform kNN search
+        candidates = [i for idx, i in enumerate(self.stored_distances) if idx in candidate_indices]
+        distances = [np.linalg.norm(query_point - candidate) for candidate in candidates]
+        return np.argsort(distances)[:k]
+
+# Test using the Iris dataset
+iris = datasets.load_iris()
+X = iris.data
+
+model = EOTI_kNN()
+model.fit(X)
+
+query_point = [5.1, 3.5, 1.4, 0.2]
+print(model.knn_search(query_point, k=3))
