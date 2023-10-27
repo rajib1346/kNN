@@ -1,0 +1,59 @@
+import numpy as np
+from sklearn.datasets import load_iris
+
+class KDNode:
+    def __init__(self, point, left=None, right=None, axis=None):
+        self.point = point
+        self.left = left
+        self.right = right
+        self.axis = axis
+
+def build_kd_tree(points, depth=0):
+    n = len(points)
+    if n == 0:
+        return None
+
+    axis = depth % points.shape[1]
+    sorted_points = sorted(points, key=lambda x: x[axis])
+    median = n // 2
+
+    return KDNode(
+        point=sorted_points[median],
+        left=build_kd_tree(sorted_points[:median], depth + 1),
+        right=build_kd_tree(sorted_points[median + 1 :], depth + 1),
+        axis=axis
+    )
+
+def find_nearest_neighbor(root, query_point, depth=0, best=None):
+    if root is None:
+        return best
+    
+    if best is None or np.linalg.norm(query_point - best.point) > np.linalg.norm(query_point - root.point):
+        best = root
+
+    axis = depth % len(query_point)
+    next_branch = None
+    opposite_branch = None
+    
+    if query_point[axis] < root.point[axis]:
+        next_branch = root.left
+        opposite_branch = root.right
+    else:
+        next_branch = root.right
+        opposite_branch = root.left
+
+    best = find_nearest_neighbor(next_branch, query_point, depth + 1, best)
+    
+    if abs(query_point[axis] - root.point[axis]) < np.linalg.norm(query_point - best.point):
+        best = find_nearest_neighbor(opposite_branch, query_point, depth + 1, best)
+
+    return best
+
+# Load iris dataset for demonstration
+data = load_iris().data
+kd_tree_root = build_kd_tree(data)
+
+# Query with a test point
+test_point = np.array([5.1, 3.5, 1.4, 0.2])
+nearest_neighbor = find_nearest_neighbor(kd_tree_root, test_point)
+print(f"Nearest neighbor to the test point is: {nearest_neighbor.point}")
